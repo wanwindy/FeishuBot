@@ -10,6 +10,25 @@
 - 📅 **定时推送**：支持定时自动推送日报/周报到指定群聊
 - 🔄 **Token自动刷新**：自动刷新用户访问令牌，确保长期稳定运行
 - 💬 **评论分析**：自动获取任务评论，提供更全面的工作进展信息
+- ☁️ **多部署方案**：支持本地部署和Cloudflare Worker云端部署
+
+## 部署方案
+
+### 方案一：本地部署（推荐用于开发测试）
+
+适合开发测试和小规模使用，需要自备服务器或本地环境。
+
+### 方案二：Cloudflare Worker部署（推荐用于生产环境）
+
+适合生产环境使用，具有以下优势：
+- 🌐 **全球分布式**：Cloudflare Worker 在全球 200+ 个数据中心运行
+- ⚡ **高性能**：基于 V8 引擎，启动时间 < 1ms
+- 💰 **免费额度**：每天 100,000 次请求免费
+- 🔒 **安全可靠**：企业级安全防护
+- 📅 **定时触发**：支持 Cron 定时任务
+- 🗄️ **KV存储**：持久化存储用户Token
+
+详细部署指南请参考：[Cloudflare Worker 部署指南](./CLOUDFLARE_DEPLOY.md)
 
 ## 系统架构
 
@@ -26,15 +45,17 @@
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 安装配置
+## 快速开始
 
-### 1. 环境要求
+### 本地部署
+
+#### 1. 环境要求
 
 - Python 3.7+
 - 飞书开发者账号
 - 豆包大模型API密钥
 
-### 2. 安装依赖
+#### 2. 安装依赖
 
 ```bash
 # 创建虚拟环境
@@ -47,10 +68,10 @@ python -m venv .venv
 source .venv/bin/activate
 
 # 安装依赖包
-pip install requests apscheduler fastapi uvicorn
+pip install -r requirements.txt
 ```
 
-### 3. 飞书应用配置
+#### 3. 飞书应用配置
 
 1. 登录[飞书开放平台](https://open.feishu.cn/)
 2. 创建应用，获取 `app_id` 和 `app_secret`
@@ -60,7 +81,7 @@ pip install requests apscheduler fastapi uvicorn
    - `message:send` - 发送消息权限
 4. 发布应用
 
-### 4. 配置文件
+#### 4. 配置文件
 
 创建 `config.py` 文件：
 
@@ -82,55 +103,81 @@ class config:
     DOUBAO_MODEL = "doubao-pro"
 ```
 
-## 使用方法
-
-### 1. 用户授权
-
-启动授权服务：
+#### 5. 使用方法
 
 ```bash
+# 1. 用户授权
 python auth_server.py
-```
 
-访问 `http://localhost:8000/auth` 进行用户授权，系统会自动保存用户的访问令牌。
-
-### 2. 手动测试
-
-```bash
+# 2. 手动测试
 python main.py
-```
 
-系统会自动：
-- 读取所有已授权用户
-- 获取任务清单中的所有任务
-- 获取任务评论
-- 生成AI总结
-- 推送到指定群聊
-
-### 3. 定时推送
-
-```bash
+# 3. 定时推送
 python push_scheduler.py
 ```
 
-系统会在每天9:00自动执行推送任务，包括：
-- 自动刷新所有用户的访问令牌
-- 获取最新任务数据
-- 生成日报/周报
-- 推送到群聊
+### Cloudflare Worker部署
+
+#### 1. 安装Wrangler CLI
+
+```bash
+npm install -g wrangler
+```
+
+#### 2. 登录Cloudflare
+
+```bash
+wrangler login
+```
+
+#### 3. 创建KV命名空间
+
+```bash
+wrangler kv:namespace create "TOKEN_STORE"
+wrangler kv:namespace create "TOKEN_STORE" --preview
+```
+
+#### 4. 配置环境变量
+
+在Cloudflare Dashboard中设置环境变量：
+- `FEISHU_APP_ID`
+- `FEISHU_APP_SECRET`
+- `TASKLIST_GUID`
+- `TARGET_CHAT_ID`
+- `DOUBAO_API_KEY`
+
+#### 5. 部署
+
+```bash
+wrangler deploy
+```
+
+#### 6. 配置定时触发器
+
+在Cloudflare Dashboard中配置Cron触发器：
+```bash
+# 每天上午9点执行
+0 9 * * *
+```
+
+详细步骤请参考：[Cloudflare Worker 部署指南](./CLOUDFLARE_DEPLOY.md)
 
 ## 文件结构
 
 ```
 FeishuBot/
-├── README.md              # 项目说明文档
-├── config.py              # 配置文件
-├── main.py                # 主程序
-├── auth_server.py         # 用户授权服务
-├── token_store.py         # Token管理
-├── push_scheduler.py      # 定时推送服务
-├── token.json             # 用户Token存储（自动生成）
-└── requirements.txt       # 依赖包列表
+├── README.md                    # 项目说明文档
+├── CLOUDFLARE_DEPLOY.md         # Cloudflare Worker部署指南
+├── config.py                    # 配置文件
+├── main.py                      # 主程序（本地部署）
+├── auth_server.py               # 用户授权服务（本地部署）
+├── token_store.py               # Token管理（本地部署）
+├── push_scheduler.py            # 定时推送服务（本地部署）
+├── worker.js                    # Cloudflare Worker主程序
+├── wrangler.toml                # Cloudflare Worker配置
+├── auth.html                    # 授权页面（Cloudflare Worker）
+├── token.json                   # 用户Token存储（自动生成）
+└── requirements.txt             # 依赖包列表
 ```
 
 ## 核心功能详解
@@ -221,6 +268,7 @@ FeishuBot/
 
 ### 自定义推送时间
 
+#### 本地部署
 修改 `push_scheduler.py` 中的定时配置：
 
 ```python
@@ -231,19 +279,43 @@ scheduler.add_job(job, 'cron', hour=18, minute=30)
 scheduler.add_job(job, 'cron', day_of_week='mon', hour=9, minute=0)
 ```
 
+#### Cloudflare Worker部署
+在Cloudflare Dashboard中修改Cron触发器：
+
+```bash
+# 每天18:30推送
+30 18 * * *
+
+# 每周一9:00推送周报
+0 9 * * 1
+```
+
 ### 自定义AI总结格式
 
-修改 `main.py` 中的AI提示词，定制总结格式和内容。
+修改AI提示词，定制总结格式和内容。
 
 ### 多任务清单支持
 
 扩展代码支持多个任务清单的并行处理。
 
+## 成本对比
+
+| 部署方案 | 成本 | 适用场景 |
+|----------|------|----------|
+| 本地部署 | 服务器成本 | 开发测试、小规模使用 |
+| Cloudflare Worker | 免费额度充足 | 生产环境、大规模使用 |
+
+Cloudflare Worker免费额度：
+- 每天 100,000 次请求
+- 每天 10,000,000 CPU-milliseconds
+- 每天 100,000 次KV读取，1,000 次写入
+
 ## 贡献指南
 
 欢迎提交Issue和Pull Request来改进项目！
 
+## 联系方式
 
-## wanwindy@163.com
+**邮箱**: wanwindy@163.com
 
 如有问题或建议，请通过Issue联系。 

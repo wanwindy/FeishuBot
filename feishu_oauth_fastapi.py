@@ -7,7 +7,7 @@ from token_store import save_token, get_token
 FEISHU_APP_ID = config.FEISHU_APP_ID
 FEISHU_APP_SECRET = config.FEISHU_APP_SECRET
 OAUTH_REDIRECT_URI = config.OAUTH_REDIRECT_URI
-TASKLIST_GUID = "414cc0dd-6bd0-46f8-aca8-972c9e550733"
+TASKLIST_GUID = ""
 
 app = FastAPI()
 

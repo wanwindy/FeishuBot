@@ -1,0 +1,22 @@
+name = "feishu-task-bot"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# 环境变量配置
+[vars]
+# 这些变量需要在Cloudflare Dashboard中设置
+# FEISHU_APP_ID = "your_app_id"
+# FEISHU_APP_SECRET = "your_app_secret"
+# TASKLIST_GUID = "your_tasklist_guid"
+# TARGET_CHAT_ID = "your_chat_id"
+# DOUBAO_API_KEY = "your_doubao_api_key"
+
+# KV存储配置
+[[kv_namespaces]]
+binding = "TOKEN_STORE"
+id = "05480c1e87614036a54547ae0068297a"
+preview_id = "b7d35016c0aa42f689514b824c6a7772"
+
+# 定时触发器配置 - 每天9:00执行
+[triggers]
+crons = ["0 9 * * *"]

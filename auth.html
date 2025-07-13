@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书任务机器人 - 用户授权</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #3370ff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .auth-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: #3370ff;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            margin: 20px 0;
+            transition: background-color 0.3s;
+        }
+        .auth-button:hover {
+            background-color: #2860e1;
+        }
+        .info {
+            background-color: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+        .error {
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+        .code-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .submit-button {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .submit-button:hover {
+            background-color: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 飞书任务自动日报/周报机器人</h1>
+        
+        <div class="info">
+            <h3>📋 授权说明</h3>
+            <p>为了获取您的飞书任务数据并生成日报/周报，需要您授权访问以下权限：</p>
+            <ul>
+                <li>📝 读取任务权限</li>
+                <li>💬 读取任务评论权限</li>
+                <li>👤 读取用户信息权限</li>
+            </ul>
+            <p><strong>注意：</strong>您的授权信息将安全存储在Cloudflare KV中，仅用于获取任务数据。</p>
+        </div>
+
+        <div id="auth-section">
+            <a href="#" id="auth-link" class="auth-button">
+                🔐 点击授权飞书账号
+            </a>
+        </div>
+
+        <div id="code-section" style="display: none;">
+            <h3>🔑 输入授权码</h3>
+            <p>请在飞书授权页面获取授权码，然后输入下方：</p>
+            <input type="text" id="auth-code" class="code-input" placeholder="请输入授权码">
+            <button onclick="submitCode()" class="submit-button">提交授权码</button>
+        </div>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // 获取当前域名
+        const currentDomain = window.location.origin;
+        
+        // 飞书OAuth2配置
+        const FEISHU_APP_ID = 'your_app_id'; // 需要在部署时替换
+        const REDIRECT_URI = `${currentDomain}/auth/callback`;
+        
+        // 授权链接
+        const authUrl = `https://open.feishu.cn/open-apis/authen/v1/index?app_id=${FEISHU_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+        
+        document.getElementById('auth-link').href = authUrl;
+        
+        // 检查URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        
+        if (code) {
+            // 有授权码，显示输入框
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('code-section').style.display = 'block';
+            document.getElementById('auth-code').value = code;
+            submitCode();
+        } else if (error) {
+            // 授权错误
+            showStatus(`授权失败: ${error}`, 'error');
+        }
+        
+        function submitCode() {
+            const code = document.getElementById('auth-code').value.trim();
+            if (!code) {
+                showStatus('请输入授权码', 'error');
+                return;
+            }
+            
+            showStatus('正在处理授权...', 'info');
+            
+            // 发送授权码到Worker
+            fetch('/auth/callback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ code: code })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus('✅ 授权成功！您的账号已添加到机器人中。', 'success');
+                    document.getElementById('code-section').style.display = 'none';
+                } else {
+                    showStatus(`❌ 授权失败: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                showStatus(`❌ 网络错误: ${error.message}`, 'error');
+            });
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html> 
